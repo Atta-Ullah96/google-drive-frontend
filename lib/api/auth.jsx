@@ -45,7 +45,7 @@ export const login = async (data) => {
 
 export const googleAuth = async (data) => {
   try {
-    const response = await api.post("auth/google", data);
+    const response = await api.post("auth/google",  data);
     notifyAuthChange(true);
     return response.data;
   } catch (error) {
