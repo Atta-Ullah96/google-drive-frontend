@@ -1,52 +1,23 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-
-// ─── Icon helpers ──────────────────────────────────────────────────────────────
-
-function FolderIcon({ color = "#5f6368" }) {
-  return (
-    <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0" fill={color} aria-hidden="true">
-      <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
-    </svg>
-  );
-}
-
-function FolderLargeIcon({ color = "#5f6368" }) {
-  return (
-    <svg viewBox="0 0 24 24" className="w-8 h-8 shrink-0" fill={color} aria-hidden="true">
-      <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
-    </svg>
-  );
-}
-
-function FileIcon({ ext }) {
-  const map = {
-    pdf:  { bg: "#fce8e6", color: "#d93025", label: "PDF" },
-    doc:  { bg: "#e8f0fe", color: "#1a73e8", label: "DOC" },
-    docx: { bg: "#e8f0fe", color: "#1a73e8", label: "DOC" },
-    xls:  { bg: "#e6f4ea", color: "#188038", label: "XLS" },
-    xlsx: { bg: "#e6f4ea", color: "#188038", label: "XLS" },
-    ppt:  { bg: "#fce8e6", color: "#d93025", label: "PPT" },
-    pptx: { bg: "#fce8e6", color: "#d93025", label: "PPT" },
-    png:  { bg: "#e6f4ea", color: "#188038", label: "IMG" },
-    jpg:  { bg: "#e6f4ea", color: "#188038", label: "IMG" },
-    jpeg: { bg: "#e6f4ea", color: "#188038", label: "IMG" },
-    mp4:  { bg: "#f3e8fd", color: "#7b1fa2", label: "VID" },
-    zip:  { bg: "#fef7e0", color: "#e37400", label: "ZIP" },
-    txt:  { bg: "#f1f3f4", color: "#5f6368", label: "TXT" },
-  };
-  const cfg = map[ext?.toLowerCase()] ?? { bg: "#f1f3f4", color: "#5f6368", label: ext?.toUpperCase()?.slice(0, 3) ?? "FILE" };
-  return (
-    <div
-      className="w-8 h-9 rounded-sm flex items-end justify-start p-1 shrink-0"
-      style={{ backgroundColor: cfg.bg }}
-      aria-hidden="true"
-    >
-      <span className="text-[9px] font-bold leading-none" style={{ color: cfg.color }}>{cfg.label}</span>
-    </div>
-  );
-}
+import {
+  createFolder,
+  deleteFolder,
+  getFolders,
+  renameFolder,
+} from "@/lib/api/folderapi";
+import {
+  completeUpload,
+  deleteFile,
+  downloadFile,
+  getFiles,
+  requestUpload,
+  renameFile,
+  uploadToS3,
+} from "@/lib/api/file";
+import FilesList from "./files-list";
+import FoldersList from "./folders-list";
 
 function UploadIcon() {
   return (
@@ -88,71 +59,171 @@ function ListViewIcon({ active }) {
   );
 }
 
-function DotsIcon() {
+function FolderAddIcon() {
   return (
-    <svg className="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" />
+    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 11v6m-3-3h6" />
     </svg>
   );
 }
 
-// ─── Mock data ─────────────────────────────────────────────────────────────────
-
-const FOLDERS = [
-  { id: 1, name: "Documents",  color: "#1a73e8", items: 24, modified: "Jun 2, 2026" },
-  { id: 2, name: "Photos",     color: "#188038", items: 138, modified: "Jun 1, 2026" },
-  { id: 3, name: "Projects",   color: "#e37400", items: 9,  modified: "May 28, 2026" },
-  { id: 4, name: "Work Files", color: "#7b1fa2", items: 31, modified: "May 22, 2026" },
-  { id: 5, name: "Personal",   color: "#d93025", items: 17, modified: "May 15, 2026" },
-  { id: 6, name: "Archives",   color: "#5f6368", items: 6,  modified: "Apr 30, 2026" },
-];
-
-const FILES = [
-  { id: 1, name: "Q2 Report.pdf",             ext: "pdf",  size: "2.4 MB",  modified: "Jun 3, 2026",  owner: "me" },
-  { id: 2, name: "Project Proposal.docx",     ext: "docx", size: "840 KB",  modified: "Jun 2, 2026",  owner: "me" },
-  { id: 3, name: "Budget 2026.xlsx",          ext: "xlsx", size: "1.1 MB",  modified: "Jun 1, 2026",  owner: "me" },
-  { id: 4, name: "Team Photo.jpg",            ext: "jpg",  size: "3.6 MB",  modified: "May 29, 2026", owner: "me" },
-  { id: 5, name: "Product Demo.mp4",          ext: "mp4",  size: "58 MB",   modified: "May 27, 2026", owner: "me" },
-  { id: 6, name: "Meeting Notes.txt",         ext: "txt",  size: "18 KB",   modified: "May 25, 2026", owner: "me" },
-  { id: 7, name: "Presentation Deck.pptx",   ext: "pptx", size: "4.2 MB",  modified: "May 20, 2026", owner: "me" },
-  { id: 8, name: "Source Code.zip",           ext: "zip",  size: "12 MB",   modified: "May 18, 2026", owner: "me" },
-];
-
 const NAV_ITEMS = [
-  {
-    label: "My Drive", icon: (
-      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
-    ), active: true,
-  },
-  {
-    label: "Shared with me", icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-    ),
-  },
-  {
-    label: "Recent", icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-    ),
-  },
-  {
-    label: "Starred", icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
-    ),
-  },
-  {
-    label: "Trash", icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-    ),
-  },
+  { label: "My Drive", active: true },
+  { label: "Shared with me" },
+  { label: "Recent" },
+  { label: "Starred" },
+  { label: "Trash" },
 ];
 
-// ─── Main page ─────────────────────────────────────────────────────────────────
+const getReadableFileSize = (size) => {
+  return size > 1048576 ? `${(size / 1048576).toFixed(1)} MB` : `${Math.round(size / 1024)} KB`;
+};
 
-export default function Home() {
+const getCreatedFolder = (payload) => {
+  return payload?.folder || payload?.data?.folder || payload?.data || payload || {};
+};
+
+const getFoldersFromResponse = (payload) => {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (Array.isArray(payload?.folders)) {
+    return payload.folders;
+  }
+
+  if (Array.isArray(payload?.data?.folders)) {
+    return payload.data.folders;
+  }
+
+  if (Array.isArray(payload?.data)) {
+    return payload.data;
+  }
+
+  return [];
+};
+
+const normalizeFolder = (folder) => {
+  const folderCount =
+    folder.folderCount ??
+    folder.childrenCount ??
+    folder.childFolderCount ??
+    folder.foldersCount ??
+    folder.subFolderCount ??
+    0;
+  const fileCount = folder.fileCount ?? folder.filesCount ?? 0;
+  const itemCount =
+    folder.items ??
+    folder.itemCount ??
+    folder.itemsCount ??
+    folder.totalItems ??
+    folder.totalCount ??
+    folderCount + fileCount;
+
+  return {
+    id: folder._id || folder.id,
+    name: folder.name || folder.folderName || folder.title || "Untitled folder",
+    color: folder.color || "#1a73e8",
+    items: itemCount,
+    modified: folder.modified || folder.updatedAt || folder.createdAt || "Just now",
+    parentId: folder.parentId || folder.parentFolder || folder.parent || null,
+  };
+};
+
+const hasExplicitItemCount = (folder) => {
+  return [
+    folder.items,
+    folder.itemCount,
+    folder.itemsCount,
+    folder.totalItems,
+    folder.totalCount,
+    folder.folderCount,
+    folder.childrenCount,
+    folder.childFolderCount,
+    folder.foldersCount,
+    folder.subFolderCount,
+    folder.fileCount,
+    folder.filesCount,
+  ].some((value) => value !== undefined && value !== null);
+};
+
+const getFilesFromResponse = (payload) => {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (Array.isArray(payload?.files)) {
+    return payload.files;
+  }
+
+  if (Array.isArray(payload?.data?.files)) {
+    return payload.data.files;
+  }
+
+  if (Array.isArray(payload?.data)) {
+    return payload.data;
+  }
+
+  return [];
+};
+
+const getUploadDetails = (payload) => {
+  const data = payload?.data || payload;
+
+  return {
+    fileId: data?.fileId || data?.file?._id || data?.file?.id || data?._id || data?.id,
+    uploadUrl: data?.uploadUrl || data?.url || data?.signedUrl || data?.presignedUrl,
+  };
+};
+
+const getCompletedFile = (payload) => {
+  return payload?.file || payload?.data?.file || payload?.data || payload || {};
+};
+
+const normalizeFile = (file) => {
+  const fileName = file.name || file.fileName || file.originalName || "Untitled file";
+  const fileSize = file.size || file.fileSize || 0;
+
+  return {
+    id: file._id || file.id,
+    name: fileName,
+    ext: file.ext || file.extension || fileName.split(".").pop(),
+    size: typeof fileSize === "number" ? getReadableFileSize(fileSize) : fileSize,
+    modified: file.modified || file.updatedAt || file.createdAt || "Just now",
+    owner: file.owner || "me",
+    url: file.url || file.fileUrl || file.publicUrl,
+  };
+};
+
+export default function HomePage() {
   const [view, setView] = useState("grid");
+  const [folders, setFolders] = useState([]);
+  const [folderPath, setFolderPath] = useState([{ id: null, name: "My Drive" }]);
+  const [isLoadingFolders, setIsLoadingFolders] = useState(true);
+  const [folderListError, setFolderListError] = useState("");
   const [newMenuOpen, setNewMenuOpen] = useState(false);
+  const [createFolderOpen, setCreateFolderOpen] = useState(false);
+  const [folderName, setFolderName] = useState("");
+  const [folderError, setFolderError] = useState("");
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [folderAction, setFolderAction] = useState(null);
+  const [folderActionName, setFolderActionName] = useState("");
+  const [folderActionError, setFolderActionError] = useState("");
+  const [isFolderActionLoading, setIsFolderActionLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [files, setFiles] = useState([]);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(true);
+  const [fileListError, setFileListError] = useState("");
+  const [uploadError, setUploadError] = useState("");
+  const [uploadingCount, setUploadingCount] = useState(0);
+  const [uploadProgress, setUploadProgress] = useState(null);
+  const [fileAction, setFileAction] = useState(null);
+  const [fileActionName, setFileActionName] = useState("");
+  const [fileActionError, setFileActionError] = useState("");
+  const [isFileActionLoading, setIsFileActionLoading] = useState(false);
+  const [downloadError, setDownloadError] = useState("");
+  const [downloadingFileId, setDownloadingFileId] = useState(null);
   const [selectedItems, setSelectedItems] = useState([]);
   const newMenuRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -165,62 +236,429 @@ export default function Home() {
         setNewMenuOpen(false);
       }
     };
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleFileChange = (e) => {
+  const currentFolderId = folderPath[folderPath.length - 1]?.id ?? null;
+
+  useEffect(() => {
+    let ignore = false;
+
+    const getFolderItemCount = async (folderId) => {
+      const [childFoldersResponse, childFilesResponse] = await Promise.all([
+        getFolders(folderId),
+        getFiles(folderId),
+      ]);
+      const childFolders = getFoldersFromResponse(childFoldersResponse);
+      const childFiles = getFilesFromResponse(childFilesResponse);
+
+      return childFolders.length + childFiles.length;
+    };
+
+    const loadFolders = async () => {
+      setIsLoadingFolders(true);
+      setFolderListError("");
+
+      try {
+        const response = await getFolders(currentFolderId);
+        const rawFolders = getFoldersFromResponse(response);
+        const loadedFolders = await Promise.all(
+          rawFolders.map(async (folder) => {
+            const normalizedFolder = normalizeFolder(folder);
+
+            if (!normalizedFolder.id || hasExplicitItemCount(folder)) {
+              return normalizedFolder;
+            }
+
+            try {
+              return {
+                ...normalizedFolder,
+                items: await getFolderItemCount(normalizedFolder.id),
+              };
+            } catch {
+              return normalizedFolder;
+            }
+          })
+        );
+
+        if (!ignore) {
+          setFolders(loadedFolders);
+        }
+      } catch (error) {
+        if (!ignore) {
+          setFolderListError(error.message);
+          setFolders([]);
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoadingFolders(false);
+        }
+      }
+    };
+
+    loadFolders();
+
+    return () => {
+      ignore = true;
+    };
+  }, [currentFolderId]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    const loadFiles = async () => {
+      setIsLoadingFiles(true);
+      setFileListError("");
+
+      try {
+        const response = await getFiles(currentFolderId);
+        const loadedFiles = getFilesFromResponse(response).map(normalizeFile);
+
+        if (!ignore) {
+          setFiles(loadedFiles);
+        }
+      } catch (error) {
+        if (!ignore) {
+          setFileListError(error.message);
+          setFiles([]);
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoadingFiles(false);
+        }
+      }
+    };
+
+    loadFiles();
+
+    return () => {
+      ignore = true;
+    };
+  }, [currentFolderId]);
+
+  const uploadFiles = async (selectedFiles) => {
+    setUploadError("");
+    setUploadProgress({
+      current: 0,
+      fileName: selectedFiles[0]?.name || "file",
+      index: 1,
+      percent: 0,
+      total: selectedFiles.length,
+    });
+    setUploadingCount(selectedFiles.length);
+
+    try {
+      const uploadedEntries = [];
+
+      for (const [index, file] of selectedFiles.entries()) {
+        setUploadProgress({
+          current: 0,
+          fileName: file.name,
+          index: index + 1,
+          percent: 0,
+          total: selectedFiles.length,
+        });
+        const uploadRequest = await requestUpload(file, currentFolderId);
+        const { fileId, uploadUrl } = getUploadDetails(uploadRequest);
+
+        if (!fileId || !uploadUrl) {
+          throw new Error("Upload request did not return fileId and uploadUrl.");
+        }
+
+        await uploadToS3(uploadUrl, file, (percent) => {
+          setUploadProgress({
+            current: percent,
+            fileName: file.name,
+            index: index + 1,
+            percent,
+            total: selectedFiles.length,
+          });
+        });
+        const completedUpload = await completeUpload(fileId);
+        const completedFile = getCompletedFile(completedUpload);
+
+        uploadedEntries.push(
+          normalizeFile({
+            ...completedFile,
+            id: completedFile._id || completedFile.id || fileId,
+            name: completedFile.name || completedFile.fileName || file.name,
+            size: completedFile.size || completedFile.fileSize || file.size,
+          })
+        );
+      }
+
+      setFiles((prev) => [...uploadedEntries, ...prev]);
+    } catch (error) {
+      setUploadError(error.message || "Unable to upload file.");
+    } finally {
+      setUploadingCount(0);
+      setUploadProgress(null);
+    }
+  };
+
+  const handleFileChange = async (e) => {
     const files = Array.from(e.target.files ?? []);
-    if (!files.length) return;
-    const newEntries = files.map((f) => ({
-      id: Date.now() + Math.random(),
-      name: f.name,
-      ext: f.name.split(".").pop(),
-      size: f.size > 1048576 ? `${(f.size / 1048576).toFixed(1)} MB` : `${Math.round(f.size / 1024)} KB`,
-      modified: "Just now",
-      owner: "me",
-    }));
-    setUploadedFiles((prev) => [...newEntries, ...prev]);
+
+    if (!files.length) {
+      return;
+    }
+
+    await uploadFiles(files);
     setNewMenuOpen(false);
     e.target.value = "";
   };
 
-  const handleDrop = (e) => {
+  const handleDrop = async (e) => {
     e.preventDefault();
     dragCounter.current = 0;
     setIsDragging(false);
+
     const files = Array.from(e.dataTransfer.files ?? []);
-    if (!files.length) return;
-    const newEntries = files.map((f) => ({
-      id: Date.now() + Math.random(),
-      name: f.name,
-      ext: f.name.split(".").pop(),
-      size: f.size > 1048576 ? `${(f.size / 1048576).toFixed(1)} MB` : `${Math.round(f.size / 1024)} KB`,
-      modified: "Just now",
-      owner: "me",
-    }));
-    setUploadedFiles((prev) => [...newEntries, ...prev]);
+
+    if (files.length) {
+      await uploadFiles(files);
+    }
   };
 
   const handleDragEnter = (e) => {
     e.preventDefault();
-    dragCounter.current++;
+    dragCounter.current += 1;
     setIsDragging(true);
   };
 
   const handleDragLeave = (e) => {
     e.preventDefault();
-    dragCounter.current--;
-    if (dragCounter.current === 0) setIsDragging(false);
+    dragCounter.current -= 1;
+
+    if (dragCounter.current === 0) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleCreateFolder = async (e) => {
+    e.preventDefault();
+    const trimmedName = folderName.trim();
+
+    if (!trimmedName) {
+      return;
+    }
+
+    setFolderError("");
+    setIsCreatingFolder(true);
+
+    try {
+      const response = await createFolder({
+        name: trimmedName,
+        folderName: trimmedName,
+        parentId: currentFolderId,
+        parentFolder: currentFolderId,
+        parent: currentFolderId,
+      });
+      const createdFolder = getCreatedFolder(response);
+      const normalizedFolder = normalizeFolder({
+        ...createdFolder,
+        name: createdFolder.name || createdFolder.folderName || trimmedName,
+        parentId: currentFolderId,
+      });
+
+      setFolders((prev) => [
+        { ...normalizedFolder, id: normalizedFolder.id || Date.now() },
+        ...prev,
+      ]);
+      setFolderName("");
+      setCreateFolderOpen(false);
+    } catch (error) {
+      setFolderError(error.message);
+    } finally {
+      setIsCreatingFolder(false);
+    }
+  };
+
+  const openFolder = (folder) => {
+    setFolderPath((prev) => [...prev, { id: folder.id, name: folder.name }]);
+    setSelectedItems([]);
+  };
+
+  const goToFolderPath = (index) => {
+    setFolderPath((prev) => prev.slice(0, index + 1));
+    setSelectedItems([]);
+  };
+
+  const openRenameFolder = (folder) => {
+    setFolderAction({ type: "rename", folder });
+    setFolderActionName(folder.name);
+    setFolderActionError("");
+  };
+
+  const openDeleteFolder = (folder) => {
+    setFolderAction({ type: "delete", folder });
+    setFolderActionName("");
+    setFolderActionError("");
+  };
+
+  const closeFolderAction = () => {
+    setFolderAction(null);
+    setFolderActionName("");
+    setFolderActionError("");
+  };
+
+  const handleRenameFolder = async (e) => {
+    e.preventDefault();
+    const trimmedName = folderActionName.trim();
+
+    if (!folderAction?.folder || !trimmedName) {
+      return;
+    }
+
+    setFolderActionError("");
+    setIsFolderActionLoading(true);
+
+    try {
+      const response = await renameFolder(folderAction.folder.id, { name: trimmedName });
+      const updatedFolder = normalizeFolder({
+        ...folderAction.folder,
+        ...getCreatedFolder(response),
+        name: getCreatedFolder(response).name || trimmedName,
+      });
+
+      setFolders((prev) =>
+        prev.map((folder) =>
+          folder.id === folderAction.folder.id ? { ...folder, ...updatedFolder } : folder
+        )
+      );
+      closeFolderAction();
+    } catch (error) {
+      setFolderActionError(error.message);
+    } finally {
+      setIsFolderActionLoading(false);
+    }
+  };
+
+  const handleDeleteFolder = async () => {
+    if (!folderAction?.folder) {
+      return;
+    }
+
+    setFolderActionError("");
+    setIsFolderActionLoading(true);
+
+    try {
+      await deleteFolder(folderAction.folder.id);
+      setFolders((prev) => prev.filter((folder) => folder.id !== folderAction.folder.id));
+      closeFolderAction();
+    } catch (error) {
+      setFolderActionError(error.message);
+    } finally {
+      setIsFolderActionLoading(false);
+    }
+  };
+
+  const openRenameFile = (file) => {
+    setFileAction({ type: "rename", file });
+    setFileActionName(file.name);
+    setFileActionError("");
+  };
+
+  const openDeleteFile = (file) => {
+    setFileAction({ type: "delete", file });
+    setFileActionName("");
+    setFileActionError("");
+  };
+
+  const getDownloadFileName = (response, fallbackName) => {
+    const disposition = response.headers?.["content-disposition"];
+    const match = disposition?.match(/filename="?([^"]+)"?/i);
+
+    return match?.[1] || fallbackName || "download";
+  };
+
+  const handleDownloadFile = async (file) => {
+    setDownloadError("");
+    setDownloadingFileId(file.id);
+
+    try {
+      const response = await downloadFile(file.id);
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = getDownloadFileName(response, file.name);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setDownloadError(error.message);
+    } finally {
+      setDownloadingFileId(null);
+    }
+  };
+
+  const closeFileAction = () => {
+    setFileAction(null);
+    setFileActionName("");
+    setFileActionError("");
+  };
+
+  const handleRenameFile = async (e) => {
+    e.preventDefault();
+    const trimmedName = fileActionName.trim();
+
+    if (!fileAction?.file || !trimmedName) {
+      return;
+    }
+
+    setFileActionError("");
+    setIsFileActionLoading(true);
+
+    try {
+      const response = await renameFile(fileAction.file.id, trimmedName);
+      const updatedFile = normalizeFile({
+        ...fileAction.file,
+        ...getCompletedFile(response),
+        name: getCompletedFile(response).name || getCompletedFile(response).fileName || trimmedName,
+      });
+
+      setFiles((prev) =>
+        prev.map((file) =>
+          file.id === fileAction.file.id ? { ...file, ...updatedFile } : file
+        )
+      );
+      closeFileAction();
+    } catch (error) {
+      setFileActionError(error.message);
+    } finally {
+      setIsFileActionLoading(false);
+    }
+  };
+
+  const handleDeleteFile = async () => {
+    if (!fileAction?.file) {
+      return;
+    }
+
+    setFileActionError("");
+    setIsFileActionLoading(true);
+
+    try {
+      await deleteFile(fileAction.file.id);
+      setFiles((prev) => prev.filter((file) => file.id !== fileAction.file.id));
+      setSelectedItems((prev) => prev.filter((itemId) => itemId !== fileAction.file.id));
+      closeFileAction();
+    } catch (error) {
+      setFileActionError(error.message);
+    } finally {
+      setIsFileActionLoading(false);
+    }
   };
 
   const toggleSelect = (id) => {
     setSelectedItems((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((itemId) => itemId !== id) : [...prev, id]
     );
   };
-
-  const allFiles = [...uploadedFiles, ...FILES];
 
   return (
     <div
@@ -230,14 +668,18 @@ export default function Home() {
       onDragOver={(e) => e.preventDefault()}
       onDrop={handleDrop}
     >
-      {/* ── Hidden file inputs ── */}
-      <input ref={fileInputRef}   type="file"   multiple className="hidden" onChange={handleFileChange} />
-      <input ref={folderInputRef} type="file"   multiple className="hidden" onChange={handleFileChange}
-        {...{ webkitdirectory: "", directory: "" }} />
+      <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileChange} />
+      <input
+        ref={folderInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={handleFileChange}
+        {...{ webkitdirectory: "", directory: "" }}
+      />
 
-      {/* ── Drag overlay ── */}
       {isDragging && (
-        <div className="absolute inset-0 z-50 bg-[#1a73e8]/10 border-4 border-dashed border-[#1a73e8] flex flex-col items-center justify-center pointer-events-none rounded-none">
+        <div className="absolute inset-0 z-50 bg-[#1a73e8]/10 border-4 border-dashed border-[#1a73e8] flex flex-col items-center justify-center pointer-events-none">
           <div className="bg-white rounded-2xl shadow-xl px-10 py-8 flex flex-col items-center gap-3">
             <div className="w-16 h-16 rounded-full bg-[#e8f0fe] flex items-center justify-center">
               <UploadIcon />
@@ -248,13 +690,216 @@ export default function Home() {
         </div>
       )}
 
-      {/* ── Sidebar ── */}
+      {createFolderOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
+          <form
+            onSubmit={handleCreateFolder}
+            className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl border border-gray-100"
+          >
+            <h2 className="text-lg font-semibold text-gray-900">New folder</h2>
+            <label htmlFor="folder-name" className="block text-sm font-medium text-gray-700 mt-4 mb-1.5">
+              Folder name
+            </label>
+            <input
+              id="folder-name"
+              type="text"
+              autoFocus
+              value={folderName}
+              onChange={(e) => setFolderName(e.target.value)}
+              placeholder="Untitled folder"
+              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1a73e8] focus:border-transparent"
+            />
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+              onClick={() => {
+                setCreateFolderOpen(false);
+                setFolderName("");
+                setFolderError("");
+              }}
+              disabled={isCreatingFolder}
+              className="px-4 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-100"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isCreatingFolder}
+              className="px-4 py-2 text-sm font-semibold text-white bg-[#1a73e8] rounded-lg hover:bg-[#1557b0] disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isCreatingFolder ? "Creating..." : "Create"}
+            </button>
+          </div>
+          {folderError && (
+            <p className="mt-3 text-sm text-red-600" role="alert">
+              {folderError}
+            </p>
+          )}
+        </form>
+      </div>
+      )}
+
+      {folderAction?.type === "rename" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
+          <form
+            onSubmit={handleRenameFolder}
+            className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl border border-gray-100"
+          >
+            <h2 className="text-lg font-semibold text-gray-900">Rename folder</h2>
+            <label htmlFor="rename-folder-name" className="block text-sm font-medium text-gray-700 mt-4 mb-1.5">
+              Folder name
+            </label>
+            <input
+              id="rename-folder-name"
+              type="text"
+              autoFocus
+              value={folderActionName}
+              onChange={(e) => setFolderActionName(e.target.value)}
+              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1a73e8] focus:border-transparent"
+            />
+            {folderActionError && (
+              <p className="mt-3 text-sm text-red-600" role="alert">
+                {folderActionError}
+              </p>
+            )}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeFolderAction}
+                disabled={isFolderActionLoading}
+                className="px-4 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isFolderActionLoading}
+                className="px-4 py-2 text-sm font-semibold text-white bg-[#1a73e8] rounded-lg hover:bg-[#1557b0] disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isFolderActionLoading ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {folderAction?.type === "delete" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl border border-gray-100">
+            <h2 className="text-lg font-semibold text-gray-900">Delete folder</h2>
+            <p className="mt-3 text-sm text-gray-600">
+              Delete &quot;{folderAction.folder.name}&quot;? This action cannot be undone.
+            </p>
+            {folderActionError && (
+              <p className="mt-3 text-sm text-red-600" role="alert">
+                {folderActionError}
+              </p>
+            )}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeFolderAction}
+                disabled={isFolderActionLoading}
+                className="px-4 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteFolder}
+                disabled={isFolderActionLoading}
+                className="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isFolderActionLoading ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {fileAction?.type === "rename" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
+          <form
+            onSubmit={handleRenameFile}
+            className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl border border-gray-100"
+          >
+            <h2 className="text-lg font-semibold text-gray-900">Rename file</h2>
+            <label htmlFor="rename-file-name" className="block text-sm font-medium text-gray-700 mt-4 mb-1.5">
+              File name
+            </label>
+            <input
+              id="rename-file-name"
+              type="text"
+              autoFocus
+              value={fileActionName}
+              onChange={(e) => setFileActionName(e.target.value)}
+              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1a73e8] focus:border-transparent"
+            />
+            {fileActionError && (
+              <p className="mt-3 text-sm text-red-600" role="alert">
+                {fileActionError}
+              </p>
+            )}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeFileAction}
+                disabled={isFileActionLoading}
+                className="px-4 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isFileActionLoading}
+                className="px-4 py-2 text-sm font-semibold text-white bg-[#1a73e8] rounded-lg hover:bg-[#1557b0] disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isFileActionLoading ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {fileAction?.type === "delete" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl border border-gray-100">
+            <h2 className="text-lg font-semibold text-gray-900">Delete file</h2>
+            <p className="mt-3 text-sm text-gray-600">
+              Delete &quot;{fileAction.file.name}&quot;? This action cannot be undone.
+            </p>
+            {fileActionError && (
+              <p className="mt-3 text-sm text-red-600" role="alert">
+                {fileActionError}
+              </p>
+            )}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeFileAction}
+                disabled={isFileActionLoading}
+                className="px-4 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteFile}
+                disabled={isFileActionLoading}
+                className="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isFileActionLoading ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <aside className="hidden md:flex flex-col w-56 xl:w-64 shrink-0 py-3 border-r border-gray-100 h-[calc(100vh-64px)] sticky top-16 overflow-y-auto">
-        {/* New button */}
-        <div className="px-3 mb-4" ref={newMenuRef}>
+        <div className="px-3 mb-4 relative" ref={newMenuRef}>
           <button
             type="button"
-            onClick={() => setNewMenuOpen((v) => !v)}
+            onClick={() => setNewMenuOpen((value) => !value)}
             className="flex items-center gap-3 w-full px-5 py-3 bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-200 rounded-2xl shadow-sm text-sm font-medium text-gray-700 transition-all duration-150"
           >
             <PlusIcon />
@@ -263,62 +908,54 @@ export default function Home() {
           </button>
 
           {newMenuOpen && (
-            <div className="absolute mt-1 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-30">
+            <div className="absolute left-3 right-3 mt-1 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-30">
               <button
                 type="button"
-                onClick={() => { fileInputRef.current?.click(); }}
+                onClick={() => fileInputRef.current?.click()}
                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
               >
-                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                </svg>
+                <UploadIcon />
                 Upload file
               </button>
               <button
                 type="button"
-                onClick={() => { folderInputRef.current?.click(); }}
+                onClick={() => folderInputRef.current?.click()}
                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
               >
-                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 11v6m-3-3h6" />
-                </svg>
+                <FolderAddIcon />
                 Upload folder
               </button>
               <div className="h-px bg-gray-100 my-1" />
               <button
                 type="button"
-                onClick={() => setNewMenuOpen(false)}
+                onClick={() => {
+                  setNewMenuOpen(false);
+                  setCreateFolderOpen(true);
+                }}
                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
               >
-                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
-                </svg>
+                <FolderAddIcon />
                 New folder
               </button>
             </div>
           )}
         </div>
 
-        {/* Nav items */}
         <nav className="flex-1 px-2 space-y-0.5">
-          {NAV_ITEMS.map(({ label, icon, active }) => (
+          {NAV_ITEMS.map(({ label, active }) => (
             <button
               key={label}
               type="button"
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-full text-sm font-medium transition-colors ${
-                active
-                  ? "bg-[#e8f0fe] text-[#1a73e8]"
-                  : "text-gray-700 hover:bg-gray-100"
+                active ? "bg-[#e8f0fe] text-[#1a73e8]" : "text-gray-700 hover:bg-gray-100"
               }`}
             >
-              <span className={active ? "text-[#1a73e8]" : "text-gray-500"}>{icon}</span>
+              <FolderAddIcon />
               {label}
             </button>
           ))}
         </nav>
 
-        {/* Storage bar */}
         <div className="px-4 pt-4 pb-2 border-t border-gray-100 mt-2">
           <div className="flex justify-between text-xs text-gray-500 mb-2">
             <span>Storage</span>
@@ -327,23 +964,29 @@ export default function Home() {
           <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
             <div className="h-full w-[16%] bg-[#1a73e8] rounded-full" />
           </div>
-          <button
-            type="button"
-            className="mt-3 w-full text-xs text-center text-[#1a73e8] hover:underline font-medium"
-          >
+          <button type="button" className="mt-3 w-full text-xs text-center text-[#1a73e8] hover:underline font-medium">
             Get more storage
           </button>
         </div>
       </aside>
 
-      {/* ── Main content ── */}
       <main className="flex-1 overflow-y-auto px-4 sm:px-6 py-5">
-
-        {/* Toolbar */}
         <div className="flex items-center justify-between mb-5">
-          <h1 className="text-[15px] font-medium text-gray-800">My Drive</h1>
+          <div className="flex items-center gap-1 min-w-0">
+            {folderPath.map((folder, index) => (
+              <div key={`${folder.id ?? "root"}-${index}`} className="flex items-center gap-1 min-w-0">
+                {index > 0 && <span className="text-gray-300">/</span>}
+                <button
+                  type="button"
+                  onClick={() => goToFolderPath(index)}
+                  className="text-[15px] font-medium text-gray-800 hover:text-[#1a73e8] truncate max-w-40"
+                >
+                  {folder.name}
+                </button>
+              </div>
+            ))}
+          </div>
           <div className="flex items-center gap-1">
-            {/* Mobile upload button */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -371,112 +1014,73 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ── Folders section ── */}
-        <section className="mb-7">
-          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Folders</h2>
+        {folderListError && (
+          <div className="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
+            {folderListError}
+          </div>
+        )}
 
-          {view === "grid" ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-              {FOLDERS.map((folder) => (
-                <div
-                  key={folder.id}
-                  className="group flex flex-col items-center gap-2 p-3 rounded-xl border border-transparent hover:border-gray-200 hover:bg-gray-50 cursor-pointer transition-all duration-150 select-none"
-                  onDoubleClick={() => {}}
-                >
-                  <FolderLargeIcon color={folder.color} />
-                  <p className="text-xs text-gray-800 font-medium text-center truncate w-full">{folder.name}</p>
-                  <p className="text-[10px] text-gray-400">{folder.items} items</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-xl border border-gray-200 overflow-hidden">
-              {FOLDERS.map((folder, idx) => (
-                <div
-                  key={folder.id}
-                  className={`flex items-center gap-4 px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors ${idx !== 0 ? "border-t border-gray-100" : ""}`}
-                >
-                  <FolderIcon color={folder.color} />
-                  <span className="flex-1 text-sm text-gray-800 font-medium truncate">{folder.name}</span>
-                  <span className="text-xs text-gray-400 hidden sm:block w-28 text-right">{folder.items} items</span>
-                  <span className="text-xs text-gray-400 hidden md:block w-32 text-right">{folder.modified}</span>
-                  <button type="button" className="p-1 rounded-full hover:bg-gray-200 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <DotsIcon />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+        {fileListError && (
+          <div className="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
+            {fileListError}
+          </div>
+        )}
 
-        {/* ── Files section ── */}
-        <section>
-          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Files</h2>
-
-          {view === "grid" ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-              {allFiles.map((file) => (
-                <div
-                  key={file.id}
-                  onClick={() => toggleSelect(file.id)}
-                  className={`group flex flex-col gap-2 p-3 rounded-xl border cursor-pointer transition-all duration-150 select-none ${
-                    selectedItems.includes(file.id)
-                      ? "border-[#1a73e8] bg-[#e8f0fe]"
-                      : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <FileIcon ext={file.ext} />
-                    <button
-                      type="button"
-                      onClick={(e) => e.stopPropagation()}
-                      className="p-1 rounded-full hover:bg-gray-200 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <DotsIcon />
-                    </button>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-800 font-medium truncate">{file.name}</p>
-                    <p className="text-[10px] text-gray-400 mt-0.5">{file.size}</p>
-                  </div>
-                </div>
-              ))}
+        {uploadProgress && (
+          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+            <div className="flex items-center justify-between gap-3">
+              <span className="truncate">
+                Uploading {uploadProgress.fileName}
+                {uploadingCount > 1 ? ` (${uploadProgress.index}/${uploadProgress.total})` : ""}
+              </span>
+              <span className="shrink-0 font-medium">{uploadProgress.percent}%</span>
             </div>
-          ) : (
-            <div className="rounded-xl border border-gray-200 overflow-hidden">
-              <div className="flex items-center gap-4 px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                <div className="w-7" />
-                <span className="flex-1">Name</span>
-                <span className="hidden sm:block w-24 text-right">Size</span>
-                <span className="hidden md:block w-36 text-right">Modified</span>
-                <div className="w-6" />
-              </div>
-              {allFiles.map((file, idx) => (
-                <div
-                  key={file.id}
-                  onClick={() => toggleSelect(file.id)}
-                  className={`group flex items-center gap-4 px-4 py-3 cursor-pointer transition-colors ${
-                    idx !== 0 ? "border-t border-gray-100" : ""
-                  } ${selectedItems.includes(file.id) ? "bg-[#e8f0fe]" : "hover:bg-gray-50"}`}
-                >
-                  <FileIcon ext={file.ext} />
-                  <span className="flex-1 text-sm text-gray-800 font-medium truncate">{file.name}</span>
-                  <span className="text-xs text-gray-400 hidden sm:block w-24 text-right">{file.size}</span>
-                  <span className="text-xs text-gray-400 hidden md:block w-36 text-right">{file.modified}</span>
-                  <button
-                    type="button"
-                    onClick={(e) => e.stopPropagation()}
-                    className="p-1 rounded-full hover:bg-gray-200 opacity-0 group-hover:opacity-100 transition-opacity w-6 flex items-center justify-center"
-                  >
-                    <DotsIcon />
-                  </button>
-                </div>
-              ))}
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-blue-100">
+              <div
+                className="h-full rounded-full bg-[#1a73e8] transition-all duration-200"
+                style={{ width: `${uploadProgress.percent}%` }}
+              />
             </div>
-          )}
-        </section>
+          </div>
+        )}
 
-        {/* ── Empty drop hint at the bottom ── */}
+        {uploadError && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {uploadError}
+          </div>
+        )}
+
+        {downloadError && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {downloadError}
+          </div>
+        )}
+
+        {downloadingFileId && (
+          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+            Preparing download...
+          </div>
+        )}
+
+        <FoldersList
+          folders={folders}
+          isLoading={isLoadingFolders}
+          onDelete={openDeleteFolder}
+          onOpen={openFolder}
+          onRename={openRenameFolder}
+          view={view}
+        />
+        <FilesList
+          files={files}
+          isLoading={isLoadingFiles}
+          onDelete={openDeleteFile}
+          onDownload={handleDownloadFile}
+          onRename={openRenameFile}
+          selectedItems={selectedItems}
+          view={view}
+          onToggleSelect={toggleSelect}
+        />
+
         <div
           className="mt-8 border-2 border-dashed border-gray-200 rounded-2xl py-10 flex flex-col items-center gap-3 text-gray-400 cursor-pointer hover:border-[#1a73e8] hover:bg-[#f8f9ff] transition-colors group"
           onClick={() => fileInputRef.current?.click()}
