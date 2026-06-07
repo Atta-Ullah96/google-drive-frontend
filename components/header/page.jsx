@@ -138,7 +138,7 @@ export default function Header() {
         <div className="flex items-center h-16 gap-4 w-full">
 
           {/* ── Logo ── */}
-          <Link href="/" className="flex items-center gap-2 shrink-0 group">
+          <Link href="/" className=" cursor-pointer flex items-center gap-2 shrink-0 group">
             <DriveIcon />
             <span className="text-[17px] font-medium text-gray-700 group-hover:text-gray-900 transition-colors">
               Storix
