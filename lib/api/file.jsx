@@ -92,7 +92,7 @@ export const deleteFile = async (fileId) => {
 
 export const downloadFile = async (fileId) => {
   try {
-    const response = await api.get(`file/${fileId}/download`, {
+    const response = await api.get(`file/${fileId}/download?redirect=true`, {
       responseType: "blob",
     });
 

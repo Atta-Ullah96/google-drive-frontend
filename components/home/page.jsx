@@ -567,34 +567,18 @@ export default function HomePage() {
     setFileActionError("");
   };
 
-  const getDownloadFileName = (response, fallbackName) => {
-    const disposition = response.headers?.["content-disposition"];
-    const match = disposition?.match(/filename="?([^"]+)"?/i);
+  const handleDownloadFile = (file) => {
+  setDownloadError("");
+  setDownloadingFileId(file.id);
 
-    return match?.[1] || fallbackName || "download";
-  };
-
-  const handleDownloadFile = async (file) => {
-    setDownloadError("");
-    setDownloadingFileId(file.id);
-
-    try {
-      const response = await downloadFile(file.id);
-      const url = URL.createObjectURL(response.data);
-      const link = document.createElement("a");
-
-      link.href = url;
-      link.download = getDownloadFileName(response, file.name);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      setDownloadError(error.message);
-    } finally {
-      setDownloadingFileId(null);
-    }
-  };
+  try {
+    window.location.href = `http://localhost:4000/api/v1/file/${file.id}/download?redirect=true`;
+  } catch (error) {
+    setDownloadError(error.message);
+  } finally {
+    setDownloadingFileId(null);
+  }
+};
 
   const closeFileAction = () => {
     setFileAction(null);
