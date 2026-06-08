@@ -41,7 +41,7 @@ function DotsIcon() {
   );
 }
 
-function FileActions({ file, onDelete, onDownload, onRename }) {
+function FileActions({ file, onDelete, onDownload, onRename , onPreview}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -82,6 +82,17 @@ function FileActions({ file, onDelete, onDownload, onRename }) {
           >
             Rename
           </button>
+           <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(false);
+              onPreview(file);
+            }}
+            className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-red-50"
+          >
+            Preview
+          </button>
           <button
             type="button"
             onClick={(e) => {
@@ -93,6 +104,7 @@ function FileActions({ file, onDelete, onDownload, onRename }) {
           >
             Delete
           </button>
+         
         </div>
       )}
     </div>
@@ -127,6 +139,7 @@ export default function FilesList({
   onDelete,
   onDownload,
   onRename,
+  onPreview,
   selectedItems,
   view,
   onToggleSelect,
@@ -161,6 +174,7 @@ export default function FilesList({
                   onDelete={onDelete}
                   onDownload={onDownload}
                   onRename={onRename}
+                  onPreview={onPreview}
                 />
               </div>
               <div>

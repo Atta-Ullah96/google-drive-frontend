@@ -103,3 +103,9 @@ export const downloadFile = async (fileId) => {
     );
   }
 };
+
+
+export const getPreviewUrl = async (fileId) => {
+  const response = await api.get(`file/${fileId}/preview`);
+  return response.data.file;
+};
