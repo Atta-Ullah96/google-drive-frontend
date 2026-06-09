@@ -20,13 +20,13 @@ export default function FileRow({
     >
       <FileIcon ext={file.ext} />
       <span className="flex-1 text-sm text-gray-800 font-medium truncate">
-        {file.name}
+        {file?.name}
       </span>
       <span className="text-xs text-gray-400 hidden sm:block w-24 text-right">
-        {file.size}
+        {file?.size}
       </span>
       <span className="text-xs text-gray-400 hidden md:block w-36 text-right">
-        {file.modified}
+        {file?.modified.split('T')[0]}
       </span>
       <FileActions
         file={file}
