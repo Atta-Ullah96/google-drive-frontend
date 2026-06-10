@@ -51,6 +51,17 @@ import {
   normalizeFolder,
 } from "@/utils/drive/folder";
 
+import { getStorageInfo } from "@/lib/api/user";
+
+const DEFAULT_STORAGE_LIMIT = 8 * 1024 * 1024 * 1024;
+
+const DEFAULT_STORAGE = {
+  used: 0,
+  limit: DEFAULT_STORAGE_LIMIT,
+  remaining: DEFAULT_STORAGE_LIMIT,
+  percentage: 0,
+};
+
 export default function HomePage() {
   const [view, setView] = useState("grid");
 
@@ -92,12 +103,84 @@ export default function HomePage() {
   const [selectedItems, setSelectedItems] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
 
+  const [storage, setStorage] = useState(DEFAULT_STORAGE);
+
   const newMenuRef = useRef(null);
   const fileInputRef = useRef(null);
   const folderInputRef = useRef(null);
   const dragCounter = useRef(0);
 
   const currentFolderId = folderPath[folderPath.length - 1]?.id ?? null;
+
+  const normalizeStorageResponse = (response) => {
+    const storageData =
+      response?.storage ||
+      response?.data?.storage ||
+      response?.data?.data?.storage;
+
+    if (!storageData) {
+      return DEFAULT_STORAGE;
+    }
+
+    const used = Number(storageData.used ?? storageData.storageUsed ?? 0);
+
+    const limit = Number(
+      storageData.limit ?? storageData.storageLimit ?? DEFAULT_STORAGE_LIMIT
+    );
+
+    const remaining = Math.max(
+      Number(storageData.remaining ?? limit - used),
+      0
+    );
+
+    const percentage =
+      storageData.percentage !== undefined
+        ? Number(storageData.percentage)
+        : limit > 0
+          ? Math.min(Number(((used / limit) * 100).toFixed(2)), 100)
+          : 0;
+
+    return {
+      used,
+      limit,
+      remaining,
+      percentage,
+    };
+  };
+
+  const reloadStorageInfo = async () => {
+    try {
+      const response = await getStorageInfo();
+      const normalizedStorage = normalizeStorageResponse(response);
+
+      setStorage(normalizedStorage);
+    } catch (error) {
+      console.error("Unable to load storage info:", error);
+    }
+  };
+
+  useEffect(() => {
+    let ignore = false;
+
+    const load = async () => {
+      try {
+        const response = await getStorageInfo();
+        const normalizedStorage = normalizeStorageResponse(response);
+
+        if (!ignore) {
+          setStorage(normalizedStorage);
+        }
+      } catch (error) {
+        console.error("Unable to load storage info:", error);
+      }
+    };
+
+    load();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -262,6 +345,8 @@ export default function HomePage() {
             size: completedFile.size || completedFile.fileSize || file.size,
           })
         );
+
+        await reloadStorageInfo();
       }
 
       setFiles((prev) => [...uploadedEntries, ...prev]);
@@ -436,6 +521,8 @@ export default function HomePage() {
         prev.filter((folder) => folder.id !== folderAction.folder.id)
       );
 
+      await reloadStorageInfo();
+
       closeFolderAction();
     } catch (error) {
       setFolderActionError(error.message || "Unable to delete folder.");
@@ -539,6 +626,8 @@ export default function HomePage() {
       setSelectedItems((prev) =>
         prev.filter((itemId) => itemId !== fileAction.file.id)
       );
+
+      await reloadStorageInfo();
 
       closeFileAction();
     } catch (error) {
@@ -666,6 +755,7 @@ export default function HomePage() {
       />
 
       <DriveSidebar
+        storage={storage}
         newMenuOpen={newMenuOpen}
         setNewMenuOpen={setNewMenuOpen}
         newMenuRef={newMenuRef}

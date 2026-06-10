@@ -7,6 +7,7 @@ export default function PreviewModal({
   onClose,
 }) {
   if (!open) return null;
+  console.log(previewUrl)
 
   const ext = file?.ext?.toLowerCase();
 

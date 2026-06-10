@@ -62,7 +62,7 @@ export const getPreviewUrlFromResponse = (payload) => {
   return (
     payload?.previewUrl ||
     payload?.url ||
-    payload?.data?.previewUrl ||
+    payload?.file?.previewUrl ||
     payload?.data?.url ||
     payload?.data?.signedUrl ||
     payload?.signedUrl ||
