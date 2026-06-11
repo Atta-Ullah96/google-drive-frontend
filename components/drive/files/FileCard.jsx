@@ -19,7 +19,7 @@ export default function FileCard({
           : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
       }`}
     >
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between cursor-pointer">
         <FileIcon ext={file.ext} />
         <FileActions
           file={file}

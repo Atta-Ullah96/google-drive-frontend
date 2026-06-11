@@ -55,7 +55,7 @@ export default function DriveSidebar({
         <button
           type="button"
           onClick={() => setNewMenuOpen((value) => !value)}
-          className="flex items-center gap-3 w-full px-5 py-3 bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-200 rounded-2xl shadow-sm text-sm font-medium text-gray-700 transition-all duration-150"
+          className="flex items-center gap-3 w-full px-5 py-3 bg-white hover:bg-blue-50 border border-gray-200 cursor-pointer hover:border-blue-200 rounded-2xl shadow-sm text-sm font-medium text-gray-700 transition-all duration-150"
         >
           <PlusIcon />
           New

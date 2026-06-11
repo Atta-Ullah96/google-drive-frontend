@@ -44,7 +44,7 @@ export default function RenameModal({
             type="button"
             onClick={onClose}
             disabled={isLoading}
-            className="px-4 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-100"
+            className="cursor-pointer px-4 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-100"
           >
             Cancel
           </button>
@@ -52,7 +52,7 @@ export default function RenameModal({
           <button
             type="submit"
             disabled={isLoading}
-            className="px-4 py-2 text-sm font-semibold text-white bg-[#1a73e8] rounded-lg hover:bg-[#1557b0] disabled:opacity-60 disabled:cursor-not-allowed"
+            className="cursor-pointer px-4 py-2 text-sm font-semibold text-white bg-[#1a73e8] rounded-lg hover:bg-[#1557b0] disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isLoading ? "Saving..." : "Save"}
           </button>

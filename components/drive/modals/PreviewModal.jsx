@@ -26,7 +26,7 @@ export default function PreviewModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-1.5 text-sm rounded-lg hover:bg-gray-100"
+            className="cursor-pointer px-3 py-1.5 text-sm rounded-lg hover:bg-gray-100"
           >
             Close
           </button>

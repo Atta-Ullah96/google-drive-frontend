@@ -10,7 +10,7 @@ export default function CreateFolderModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
+    <div className="cursor-pointer fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
       <form
         onSubmit={onSubmit}
         className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl border border-gray-100"
