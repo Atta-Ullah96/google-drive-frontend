@@ -1,20 +1,83 @@
-import api from "./api";
-import { activityLogs, adminFiles, adminSettings, adminUsers, overviewStats, systemServices } from "@/lib/admin/adminMockData";
+import axios from "axios";
 
-export const ADMIN_USES_MOCK_DATA = true;
-const mock = (data) => Promise.resolve({ data });
+const apiOrigin = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "";
 
-export const getAdminOverview = () => ADMIN_USES_MOCK_DATA ? mock(overviewStats) : api.get("admin/overview");
-export const getAdminUsers = (params = {}) => ADMIN_USES_MOCK_DATA ? mock(adminUsers) : api.get("admin/users", { params });
-export const getAdminUserById = (userId) => ADMIN_USES_MOCK_DATA ? mock(adminUsers.find((user) => user.id === userId)) : api.get(`admin/users/${userId}`);
-export const updateUserStatus = (userId, status) => ADMIN_USES_MOCK_DATA ? mock({ userId, status }) : api.patch(`admin/users/${userId}/status`, { status });
-export const updateUserRole = (userId, role) => ADMIN_USES_MOCK_DATA ? mock({ userId, role }) : api.patch(`admin/users/${userId}/role`, { role });
-export const updateUserStorageLimit = (userId, storageLimit) => ADMIN_USES_MOCK_DATA ? mock({ userId, storageLimit }) : api.patch(`admin/users/${userId}/storage-limit`, { storageLimit });
-export const deleteUser = (userId) => ADMIN_USES_MOCK_DATA ? mock({ userId }) : api.delete(`admin/users/${userId}`);
-export const getStorageAnalytics = () => ADMIN_USES_MOCK_DATA ? mock({ users: adminUsers, files: adminFiles }) : api.get("admin/storage");
-export const getAdminFiles = (params = {}) => ADMIN_USES_MOCK_DATA ? mock(adminFiles) : api.get("admin/files", { params });
-export const deleteAdminFile = (fileId) => ADMIN_USES_MOCK_DATA ? mock({ fileId }) : api.delete(`admin/files/${fileId}`);
-export const getActivityLogs = (params = {}) => ADMIN_USES_MOCK_DATA ? mock(activityLogs) : api.get("admin/activity", { params });
-export const getSystemHealth = () => ADMIN_USES_MOCK_DATA ? mock(systemServices) : api.get("admin/health");
-export const getAdminSettings = () => ADMIN_USES_MOCK_DATA ? mock(adminSettings) : api.get("admin/settings");
-export const updateAdminSettings = (payload) => ADMIN_USES_MOCK_DATA ? mock(payload) : api.patch("admin/settings", payload);
+const adminApi = axios.create({
+  baseURL: `${apiOrigin}/api/admin`,
+  timeout: 15000,
+  withCredentials: true,
+  headers: { "Content-Type": "application/json" },
+});
+
+const getErrorMessage = (error, fallback) => {
+  if (!error.response) {
+    return "Cannot connect to the backend. Check NEXT_PUBLIC_API_URL and make sure the API server is running.";
+  }
+
+  return error.response.data?.message || error.response.data?.error || fallback;
+};
+
+const request = async (operation, fallback) => {
+  try {
+    const response = await operation();
+    return response.data;
+  } catch (error) {
+    throw new Error(getErrorMessage(error, fallback));
+  }
+};
+
+export const getAdminOverview = () =>
+  request(() => adminApi.get("/overview"), "Unable to load the admin overview.");
+
+export const getAdminUsers = (params = {}) =>
+  request(() => adminApi.get("/users", { params }), "Unable to load users.");
+
+export const getAdminUserById = (userId) =>
+  request(() => adminApi.get(`/users/${userId}`), "Unable to load this user.");
+
+export const updateUserStatus = (userId, status) =>
+  request(
+    () => adminApi.patch(`/users/${userId}/status`, { status }),
+    "Unable to update the user status."
+  );
+
+export const updateUserRole = (userId, role) =>
+  request(
+    () => adminApi.patch(`/users/${userId}/role`, { role }),
+    "Unable to update the user role."
+  );
+
+export const updateUserStorageLimit = (userId, storageLimit) =>
+  request(
+    () => adminApi.patch(`/users/${userId}/storage-limit`, { storageLimit }),
+    "Unable to update the storage limit."
+  );
+
+export const deleteUser = (userId) =>
+  request(() => adminApi.delete(`/users/${userId}`), "Unable to delete the user.");
+
+export const getStorageAnalytics = () =>
+  request(() => adminApi.get("/storage"), "Unable to load storage analytics.");
+
+export const getAdminFiles = (params = {}) =>
+  request(() => adminApi.get("/files", { params }), "Unable to load files.");
+
+export const getAdminFileById = (fileId) =>
+  request(() => adminApi.get(`/files/${fileId}`), "Unable to load this file.");
+
+export const deleteAdminFile = (fileId) =>
+  request(() => adminApi.delete(`/files/${fileId}`), "Unable to delete the file.");
+
+export const getActivityLogs = (params = {}) =>
+  request(() => adminApi.get("/activity", { params }), "Unable to load activity logs.");
+
+export const getSystemHealth = () =>
+  request(() => adminApi.get("/health"), "Unable to load system health.");
+
+export const getAdminSettings = () =>
+  request(() => adminApi.get("/settings"), "Unable to load admin settings.");
+
+export const updateAdminSettings = (payload) =>
+  request(() => adminApi.patch("/settings", payload), "Unable to save admin settings.");
+
+export default adminApi;

@@ -1,0 +1,8 @@
+function Value({ children }) {
+  if (!children) return <span className="inline-flex items-center gap-2 text-gray-400"><svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M5 12h14" /></svg>Not included</span>;
+  return <span className="inline-flex items-center gap-2 text-gray-700"><svg className="h-4 w-4 shrink-0 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m20 6-11 11-5-5" /></svg>{children}</span>;
+}
+
+export default function PricingComparisonTable({ rows }) {
+  return <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm"><table className="w-full min-w-[720px] border-collapse"><thead><tr className="border-b border-gray-200 bg-gray-50"><th className="w-[28%] px-5 py-4 text-left text-xs font-semibold uppercase text-gray-500">Feature</th><th className="px-5 py-4 text-left text-sm font-semibold text-gray-900">Free</th><th className="bg-blue-50/70 px-5 py-4 text-left text-sm font-semibold text-blue-800">Pro</th><th className="px-5 py-4 text-left text-sm font-semibold text-gray-900">Business</th></tr></thead><tbody>{rows.map((row) => <tr key={row.feature} className="border-b border-gray-100 last:border-0"><th className="px-5 py-4 text-left text-sm font-medium text-gray-900">{row.feature}</th><td className="px-5 py-4 text-sm"><Value>{row.free}</Value></td><td className="bg-blue-50/30 px-5 py-4 text-sm"><Value>{row.pro}</Value></td><td className="px-5 py-4 text-sm"><Value>{row.business}</Value></td></tr>)}</tbody></table></div>;
+}

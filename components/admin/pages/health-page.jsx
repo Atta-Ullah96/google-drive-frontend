@@ -1,15 +1,32 @@
 "use client";
 
-import { useState } from "react";
-import { systemServices } from "@/lib/admin/adminMockData";
-import { Badge, PageHeader, Section, StatCard } from "@/components/admin/admin-ui";
+import { useCallback, useEffect, useState } from "react";
+import { getSystemHealth } from "@/lib/api/admin";
+import { getAdminData, formatAdminDate } from "@/lib/admin/adminData";
+import { Badge, ErrorState, formatBytes, LoadingState, PageHeader, Section, StatCard } from "@/components/admin/admin-ui";
 import AdminIcon from "@/components/admin/admin-icons";
 
+const healthyStatuses = ["operational", "connected", "configured"];
+const formatUptime = (seconds = 0) => {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return days ? `${days}d ${hours}h` : `${hours}h ${minutes}m`;
+};
+
 export default function HealthPage() {
-  const [checked,setChecked]=useState("Jun 15, 2026 at 14:40 PKT");
-  return <><PageHeader eyebrow="Infrastructure" title="System health" description={`Live-shaped service status UI. Last checked ${checked}.`} actions={<button type="button" onClick={()=>setChecked("just now")} className="flex h-9 items-center gap-2 rounded-md bg-gray-900 px-4 text-xs font-semibold text-white"><AdminIcon name="refresh" className="h-3.5 w-3.5" />Run checks</button>} />
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4"><StatCard label="Services online" value="6 / 7" detail="One degraded service" tone="green" icon="health" /><StatCard label="Average response" value="97 ms" detail="Within SLO target" icon="activity" /><StatCard label="Errors (24h)" value="23" detail="-31% from yesterday" tone="amber" icon="alert" /><StatCard label="Failed requests" value="0.18%" detail="Across 128K requests" tone="red" icon="activity" /></div>
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{systemServices.map((service)=><article key={service.name} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"><div className="flex items-start justify-between"><div className={`flex h-9 w-9 items-center justify-center rounded-lg ${service.status==="operational"?"bg-emerald-50 text-emerald-600":"bg-amber-50 text-amber-600"}`}><AdminIcon name="health" className="h-4 w-4" /></div><Badge tone={service.status==="operational"?"green":"amber"}>{service.status}</Badge></div><h2 className="mt-4 text-sm font-semibold text-gray-900">{service.name}</h2><div className="mt-4 grid grid-cols-3 gap-2 border-t border-gray-100 pt-3"><div><p className="text-[10px] text-gray-400">Response</p><p className="mt-1 text-xs font-semibold">{service.response}</p></div><div><p className="text-[10px] text-gray-400">Uptime</p><p className="mt-1 text-xs font-semibold">{service.uptime}</p></div><div><p className="text-[10px] text-gray-400">Checked</p><p className="mt-1 text-xs font-semibold">{service.checked}</p></div></div></article>)}</div>
-    <Section title="Recent errors" description="Most recent service exceptions and degraded requests"><div className="divide-y divide-gray-100">{[{time:"14:06",service:"Upload service",code:"UPLOAD_ABORTED",message:"Multipart upload interrupted after client disconnect"},{time:"12:44",service:"CloudFront",code:"EDGE_TIMEOUT",message:"Elevated response time from LHR edge location"},{time:"09:18",service:"Auth & sessions",code:"SESSION_EXPIRED",message:"Expired Redis session rejected as expected"}].map((error)=><div key={error.time} className="grid gap-2 py-3 text-xs sm:grid-cols-[70px_130px_140px_1fr]"><span className="text-gray-400">{error.time}</span><span className="font-semibold text-gray-700">{error.service}</span><span className="font-mono text-red-600">{error.code}</span><span className="text-gray-500">{error.message}</span></div>)}</div></Section>
+  const [health,setHealth]=useState(null); const [loading,setLoading]=useState(true); const [error,setError]=useState("");
+  const loadHealth=useCallback(async()=>{setLoading(true);setError("");try{const response=await getSystemHealth();setHealth(getAdminData(response));}catch(requestError){setError(requestError.message);}finally{setLoading(false);}},[]);
+  useEffect(()=>{const timer=setTimeout(loadHealth,0);return()=>clearTimeout(timer);},[loadHealth]);
+
+  if(loading&&!health)return <><PageHeader eyebrow="Infrastructure" title="System health" description="Checking backend services and process health." /><LoadingState /></>;
+  if(!health)return <><PageHeader eyebrow="Infrastructure" title="System health" description="Backend health information is unavailable." /><ErrorState message={error} /></>;
+
+  const services=Object.entries(health.services||{}); const online=services.filter(([,status])=>healthyStatuses.includes(status)).length; const memory=health.memory||{};
+  return <><PageHeader eyebrow="Infrastructure" title="System health" description={`Live service and process status. Last checked ${formatAdminDate(health.timestamp,true)}.`} actions={<button type="button" onClick={loadHealth} className="flex h-9 items-center gap-2 rounded-md bg-gray-900 px-4 text-xs font-semibold text-white"><AdminIcon name="refresh" className="h-3.5 w-3.5" />Run checks</button>} />
+    {error&&<ErrorState message={error} />}
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4"><StatCard label="Overall status" value={health.status||"unknown"} detail={`${online} of ${services.length} services ready`} tone={health.status==="operational"?"green":"red"} icon="health" /><StatCard label="API uptime" value={formatUptime(health.uptime)} detail={`${Math.round(health.uptime||0).toLocaleString()} seconds`} icon="activity" /><StatCard label="Heap used" value={formatBytes(memory.heapUsed)} detail={`of ${formatBytes(memory.heapTotal)}`} tone="amber" icon="storage" /><StatCard label="Process memory" value={formatBytes(memory.rss)} detail={`${formatBytes(memory.external)} external`} tone="violet" icon="storage" /></div>
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{services.map(([name,status])=>{const healthy=healthyStatuses.includes(status);return <article key={name} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"><div className="flex items-start justify-between"><div className={`flex h-9 w-9 items-center justify-center rounded-lg ${healthy?"bg-emerald-50 text-emerald-600":"bg-red-50 text-red-600"}`}><AdminIcon name="health" className="h-4 w-4" /></div><Badge tone={healthy?"green":"red"}>{status}</Badge></div><h2 className="mt-4 text-sm font-semibold capitalize text-gray-900">{name}</h2><p className="mt-2 text-xs text-gray-500">Reported directly by the Storix backend health endpoint.</p></article>;})}</div>
+    <Section title="Node process memory" description="Current memory allocation reported by the backend"><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{[{label:"Resident set",value:memory.rss},{label:"Heap total",value:memory.heapTotal},{label:"Heap used",value:memory.heapUsed},{label:"External",value:memory.external}].map((item)=><div key={item.label} className="rounded-md bg-gray-50 p-4"><p className="text-xs text-gray-500">{item.label}</p><p className="mt-1 text-lg font-semibold text-gray-900">{formatBytes(item.value)}</p></div>)}</div></Section>
   </>;
 }

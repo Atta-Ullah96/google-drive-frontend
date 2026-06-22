@@ -1,0 +1,5 @@
+import Link from "next/link";
+
+export default function PricingCTA() {
+  return <section className="bg-[#171c24] px-4 py-16 text-white sm:px-6"><div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-7 md:flex-row md:items-center"><div><p className="text-xs font-semibold uppercase text-blue-300">Secure by design</p><h2 className="mt-2 text-2xl font-semibold sm:text-3xl">Ready to store your files securely?</h2><p className="mt-3 max-w-xl text-sm leading-6 text-gray-300">Start with the free plan and upgrade when your storage grows.</p></div><div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row"><Link href="/auth/signup" className="flex h-11 items-center justify-center rounded-md bg-blue-600 px-5 text-sm font-semibold text-white hover:bg-blue-500">Get Started Free</Link><Link href="/" className="flex h-11 items-center justify-center rounded-md border border-gray-600 px-5 text-sm font-semibold text-white hover:border-gray-400 hover:bg-white/5">View Dashboard</Link></div></div></section>;
+}
