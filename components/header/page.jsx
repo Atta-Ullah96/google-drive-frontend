@@ -132,6 +132,10 @@ export default function Header() {
     }
   };
 
+  if (pathname?.startsWith("/admin")) {
+    return null;
+  }
+
   return (
     <header className="w-full bg-white border-b border-gray-200 sticky top-0 z-40">
       <div className="w-full px-4 sm:px-6">
