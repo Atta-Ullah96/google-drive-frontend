@@ -1,6 +1,6 @@
 # Storix Frontend
 
-Storix is a Google Drive-style cloud storage application. This repository contains the Next.js frontend for authentication, file and folder management, direct-to-S3 uploads, file previews and downloads, storage quota visibility, administration, and pricing.
+Storix is a Google Drive-style cloud storage application. This repository contains the Next.js frontend for authentication, file and folder management, direct-to-S3 uploads, file previews and downloads, storage quota visibility, Stripe subscription billing, administration, and pricing.
 
 The frontend is designed to work with the separate Storix Express backend. Authentication is session-based: the backend owns the session cookie and the browser sends it automatically with API requests.
 
@@ -17,9 +17,11 @@ The frontend is designed to work with the separate Storix Express backend. Authe
 - Rename, delete, download, and preview files
 - Image, PDF, video, audio, text, and JSON preview support
 - Storage usage and quota display
+- Stripe Checkout and customer portal redirects through backend APIs
+- User billing page with current plan, quota, cancellation, and resume actions
 - Responsive admin console with role protection
-- Admin user, file, activity, storage, health, and settings pages
-- Public pricing page with Free, Pro, and Business plans
+- Admin user, file, activity, storage, subscription, payment, health, and settings pages
+- Public pricing page with Free, Pro, and Business checkout flow
 
 ## Technology
 
@@ -32,6 +34,7 @@ The frontend is designed to work with the separate Storix Express backend. Authe
 | Google authentication | `@react-oauth/google` |
 | Authentication | Backend-managed session cookie |
 | File storage | AWS S3/CloudFront through backend-generated URLs |
+| Billing | Stripe Checkout and Billing Portal through backend APIs |
 
 ## Requirements
 
@@ -88,6 +91,9 @@ Run `npm run build` before opening a pull request because it validates App Route
 | `/auth/login` | Email/password and Google login |
 | `/auth/signup` | Account registration |
 | `/pricing` | Public pricing and plan comparison |
+| `/dashboard/billing` | User subscription and billing management |
+| `/billing/success` | Stripe Checkout success return page |
+| `/billing/cancel` | Stripe Checkout cancel return page |
 
 ### Admin routes
 
@@ -97,6 +103,9 @@ Run `npm run build` before opening a pull request because it validates App Route
 | `/admin/users` | User search, filters, status, and deletion |
 | `/admin/users/[id]` | User details, role, status, and storage quota |
 | `/admin/storage` | Platform storage analytics |
+| `/admin/subscriptions` | Subscription search, filters, and billing records |
+| `/admin/subscriptions/[id]` | Subscription details, storage summary, and payment history |
+| `/admin/payments` | Payment and invoice records |
 | `/admin/files` | Platform file management |
 | `/admin/activity` | Activity and audit logs |
 | `/admin/health` | Backend service and process health |
@@ -110,12 +119,15 @@ Run `npm run build` before opening a pull request because it validates App Route
 app/
   admin/                  Admin App Router pages and layout
   auth/                   Login and signup routes
+  billing/                Stripe Checkout success and cancel pages
+  dashboard/billing/      User billing management route
   pricing/                Public pricing route
   layout.js               Root layout, header, and Google provider
   page.js                 Drive workspace entry point
 
 components/
   admin/                  Admin shell, guard, UI primitives, and pages
+  billing/                User billing page components
   drive/                  Drive files, folders, upload, toolbar, and modals
   header/                 Global navigation and session-aware account menu
   home/                   Main Drive state and workflow orchestration
@@ -125,6 +137,7 @@ components/
 lib/
   admin/                  Admin response normalization utilities
   api/                    Axios clients and API helper modules
+  billing/                Billing plan metadata and response normalization
 
 utils/
   drive/                  File/folder response normalization and formatting
@@ -160,6 +173,16 @@ ${NEXT_PUBLIC_API_URL}/api/admin/
 
 Do not call admin routes through the `/api/v1` client.
 
+### Billing API client
+
+`lib/api/billing.jsx` uses a separate Axios instance because billing routes are mounted at:
+
+```text
+${NEXT_PUBLIC_API_URL}/api/billing/
+```
+
+The billing client also sets `withCredentials: true` so session cookies are sent to the backend. The frontend never exposes a Stripe secret key and does not directly upgrade a user plan. It only asks the backend for a Stripe Checkout or Billing Portal URL and then redirects the browser.
+
 ### API modules
 
 | File | Responsibility |
@@ -169,8 +192,9 @@ Do not call admin routes through the `/api/v1` client.
 | `lib/api/file.jsx` | Upload workflow, list, rename, preview, download, delete |
 | `lib/api/user.jsx` | Current user's storage usage and quota |
 | `lib/api/admin.jsx` | All admin APIs and mutations |
+| `lib/api/billing.jsx` | Checkout, portal, current subscription, cancel, resume |
 
-Response normalization belongs in `utils/drive/` or `lib/admin/adminData.js`, not inside presentation components. This keeps components stable when backend payloads contain MongoDB `_id` values, populated references, or nested `data` objects.
+Response normalization belongs in `utils/drive/`, `lib/admin/adminData.js`, or `lib/billing/billingData.js`, not inside presentation components. This keeps components stable when backend payloads contain MongoDB `_id` values, populated references, or nested `data` objects.
 
 ## Authentication
 
@@ -247,6 +271,7 @@ Important behavior:
 - User storage-limit updates in bytes
 - User and file deletion confirmations
 - Storage analytics and large-file reporting
+- Subscription stats, subscription table, subscription detail, and payment records
 - Activity filtering and pagination
 - Service health and Node.js memory reporting
 - Global system settings updates
@@ -255,13 +280,64 @@ Admin pages normalize backend objects before rendering. For example, `_id` becom
 
 ## Pricing
 
-`/pricing` contains Free, Pro, and Business plan UI. It does not process payments yet.
+`/pricing` contains Free, Pro, and Business plans connected to the backend billing APIs.
 
-- Free routes to signup.
-- Pro routes to signup with a `plan=pro` query parameter.
-- Business opens a sales email link.
+- Free is `$0/month` with `8 GB` storage.
+- Pro is `$9/month` with `100 GB` storage.
+- Business is `$29/month` with `1 TB` storage.
+- Logged-out users who choose a paid plan are sent to login with a return path.
+- Logged-in users choosing Pro or Business see an upgrade confirmation modal.
+- Continuing from the modal calls `POST /api/billing/create-checkout-session`.
+- The frontend redirects to the Stripe Checkout URL returned by the backend.
+- Paid users can open Stripe Billing Portal through `POST /api/billing/create-portal-session`.
 
-Future billing work should replace these placeholders with checkout/session creation endpoints. TODO comments are located in `components/pricing/pricing-data.js`.
+The frontend does not collect card details. Stripe Checkout handles payment securely, and the backend finalizes plan changes from Stripe webhooks.
+
+## Billing
+
+User billing lives at `/dashboard/billing`.
+
+It loads:
+
+```text
+GET /api/billing/my-subscription
+```
+
+It can call:
+
+```text
+POST /api/billing/create-portal-session
+POST /api/billing/cancel-subscription
+POST /api/billing/resume-subscription
+```
+
+The page shows the current plan, status, storage used, storage limit, current period end, cancel-at-period-end state, and invoice/payment history if the backend returns it.
+
+Stripe return routes:
+
+- `/billing/success` explains that payment completed and the backend webhook may need a few seconds.
+- `/billing/cancel` explains that checkout was cancelled and the plan did not change.
+
+## Admin Billing
+
+Admin billing uses the existing admin guard and `/api/admin` client.
+
+Connected endpoints:
+
+```text
+GET /api/admin/subscription-stats
+GET /api/admin/subscriptions
+GET /api/admin/subscriptions/:id
+GET /api/admin/payments
+```
+
+Admin overview includes subscription cards for MRR, total revenue, active paid subscribers, Pro users, Business users, and failed payments when the backend returns stats.
+
+Admin pages:
+
+- `/admin/subscriptions` supports search, plan filter, status filter, sorting, pagination, and links to user/detail pages.
+- `/admin/subscriptions/[id]` shows subscription metadata, user info, storage summary, and payment history.
+- `/admin/payments` lists invoices/payments with status badges and invoice/PDF links.
 
 ## Session Cookie Troubleshooting
 
@@ -299,14 +375,18 @@ If a presigned upload fails:
 - Maintain responsive table overflow and mobile navigation behavior.
 - Never commit `.env.local` or backend credentials.
 
-## Current Payment TODOs
+## Billing Test Checklist
 
-- Add Stripe or another billing provider.
-- Create checkout and customer portal endpoints.
-- Persist subscriptions and plan changes.
-- Apply plan storage limits after payment confirmation.
-- Add billing history and invoice UI.
-- Replace pricing placeholder destinations with real checkout flows.
+- Logged-out user clicks Pro on `/pricing` and is redirected to `/auth/login?redirect=/pricing`.
+- Logged-in Free user clicks Pro or Business and sees the upgrade confirmation modal.
+- Continue to Checkout calls the backend and redirects to Stripe Checkout.
+- Stripe success returns to `/billing/success`.
+- Stripe cancel returns to `/billing/cancel`.
+- `/dashboard/billing` shows the updated plan after the backend webhook processes the subscription.
+- Manage Billing opens the Stripe Billing Portal.
+- Cancel and resume actions refetch the subscription after completion.
+- Admin overview shows subscription stats when the backend returns them.
+- `/admin/subscriptions` and `/admin/payments` show backend billing records.
 
 ## Related Documentation
 

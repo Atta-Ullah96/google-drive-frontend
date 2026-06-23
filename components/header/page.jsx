@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { getCurrentUser, logout } from "@/lib/api/auth";
+import { getMySubscription } from "@/lib/api/billing";
+import { formatBytes, getResponseData, normalizeMySubscription } from "@/lib/billing/billingData";
 
 function DriveIcon() {
   return (
@@ -55,6 +57,7 @@ export default function Header() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [storageSummary, setStorageSummary] = useState(null);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const dropdownRef = useRef(null);
@@ -67,6 +70,7 @@ export default function Header() {
     "User";
   const userEmail = currentUser?.email || "";
   const userInitial = userName.charAt(0).toUpperCase();
+  const isAdmin = currentUser?.role === "admin";
 
   useEffect(() => {
     let ignore = false;
@@ -78,9 +82,21 @@ export default function Header() {
         if (!ignore) {
           setCurrentUser(normalizeCurrentUser(user));
         }
+
+        try {
+          const subscription = await getMySubscription();
+          if (!ignore) {
+            setStorageSummary(normalizeMySubscription(getResponseData(subscription)));
+          }
+        } catch {
+          if (!ignore) {
+            setStorageSummary(null);
+          }
+        }
       } catch {
         if (!ignore) {
           setCurrentUser(null);
+          setStorageSummary(null);
         }
       }
     };
@@ -88,6 +104,7 @@ export default function Header() {
     const syncAuth = async (event) => {
       if (!event.detail?.authenticated) {
         setCurrentUser(null);
+        setStorageSummary(null);
         return;
       }
 
@@ -125,6 +142,7 @@ export default function Header() {
     try {
       await logout();
       setCurrentUser(null);
+      setStorageSummary(null);
       router.push("/auth/login");
       router.refresh();
     } finally {
@@ -226,10 +244,10 @@ export default function Header() {
                         <div className="mt-3">
                           <div className="flex justify-between text-xs text-gray-500 mb-1">
                             <span>Storage</span>
-                            <span>2.4 GB of 15 GB used</span>
+                            <span>{storageSummary ? `${formatBytes(storageSummary.storageUsed)} of ${formatBytes(storageSummary.storageLimit)} used` : "Loading..."}</span>
                           </div>
                           <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                            <div className="h-full w-[16%] bg-[#1a73e8] rounded-full" />
+                            <div className="h-full bg-[#1a73e8] rounded-full" style={{ width: `${storageSummary?.usagePercent || 0}%` }} />
                           </div>
                         </div>
                       </div>
@@ -242,6 +260,20 @@ export default function Header() {
                           </svg>
                           Settings
                         </a>
+                        <a href="/dashboard/billing" className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                          <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M3 10h18M7 15h1m4 0h1M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                          Billing
+                        </a>
+                        {isAdmin && (
+                          <Link href="/admin" className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M4 6h16M4 12h16M4 18h7" />
+                            </svg>
+                            Admin Dashboard
+                          </Link>
+                        )}
                         <button
                           type="button"
                           onClick={handleLogout}
@@ -321,6 +353,14 @@ export default function Header() {
               <a href="/settings" className="block px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors">
                 Settings
               </a>
+              <a href="/dashboard/billing" className="block px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors">
+                Billing
+              </a>
+              {isAdmin && (
+                <Link href="/admin" className="block px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-lg font-medium transition-colors">
+                  Admin Dashboard
+                </Link>
+              )}
               <button
                 type="button"
                 onClick={handleLogout}

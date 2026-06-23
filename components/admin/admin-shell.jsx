@@ -9,6 +9,8 @@ const links = [
   { href: "/admin", label: "Overview", icon: "overview" },
   { href: "/admin/users", label: "Users", icon: "users" },
   { href: "/admin/storage", label: "Storage", icon: "storage" },
+  { href: "/admin/subscriptions", label: "Subscriptions", icon: "storage" },
+  { href: "/admin/payments", label: "Payments", icon: "files" },
   { href: "/admin/files", label: "Files", icon: "files" },
   { href: "/admin/activity", label: "Activity Logs", icon: "activity" },
   { href: "/admin/health", label: "System Health", icon: "health" },

@@ -80,4 +80,25 @@ export const getAdminSettings = () =>
 export const updateAdminSettings = (payload) =>
   request(() => adminApi.patch("/settings", payload), "Unable to save admin settings.");
 
+export const getAdminSubscriptions = (params = {}) =>
+  request(
+    () => adminApi.get("/subscriptions", { params }),
+    "Unable to load subscriptions."
+  );
+
+export const getAdminSubscriptionById = (subscriptionId) =>
+  request(
+    () => adminApi.get(`/subscriptions/${subscriptionId}`),
+    "Unable to load this subscription."
+  );
+
+export const getAdminPayments = (params = {}) =>
+  request(() => adminApi.get("/payments", { params }), "Unable to load payments.");
+
+export const getAdminSubscriptionStats = () =>
+  request(
+    () => adminApi.get("/subscription-stats"),
+    "Unable to load subscription stats."
+  );
+
 export default adminApi;

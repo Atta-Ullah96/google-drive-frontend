@@ -1,14 +1,15 @@
 export const pricingPlans = [
   {
+    planKey: "free",
     name: "Free",
     description: "A simple way to start storing and organizing personal files.",
     price: 0,
-    storage: "5 GB",
+    storage: "8 GB",
     tone: "green",
     cta: "Get Started",
     href: "/auth/signup",
     features: [
-      "5 GB cloud storage",
+      "8 GB cloud storage",
       "Upload files and create folders",
       "Preview supported files",
       "Download files",
@@ -19,6 +20,7 @@ export const pricingPlans = [
     limitations: ["No advanced analytics", "No priority support"],
   },
   {
+    planKey: "pro",
     name: "Pro",
     description: "More capacity and speed for focused individual work.",
     price: 9,
@@ -26,8 +28,7 @@ export const pricingPlans = [
     tone: "blue",
     popular: true,
     cta: "Upgrade to Pro",
-    // TODO: Replace this signup destination with the Stripe checkout route.
-    href: "/auth/signup?plan=pro",
+    href: "/pricing",
     features: [
       "100 GB cloud storage",
       "Everything in Free",
@@ -41,14 +42,14 @@ export const pricingPlans = [
     ],
   },
   {
+    planKey: "business",
     name: "Business",
     description: "Team-ready storage controls for growing organizations.",
     price: 29,
     storage: "1 TB",
     tone: "amber",
-    cta: "Contact Sales",
-    // TODO: Replace this contact link with the business checkout or sales form.
-    href: "mailto:sales@storix.com?subject=Storix%20Business%20Plan",
+    cta: "Upgrade to Business",
+    href: "/pricing",
     features: [
       "1 TB cloud storage",
       "Everything in Pro",
@@ -64,7 +65,7 @@ export const pricingPlans = [
 ];
 
 export const comparisonRows = [
-  { feature: "Storage", free: "5 GB", pro: "100 GB", business: "1 TB" },
+  { feature: "Storage", free: "8 GB", pro: "100 GB", business: "1 TB" },
   { feature: "File uploads", free: "Basic upload", pro: "Larger uploads", business: "Highest upload limit" },
   { feature: "Folder management", free: "Included", pro: "Included", business: "Included" },
   { feature: "File preview", free: "Basic preview", pro: "Advanced preview", business: "Advanced preview" },
@@ -75,10 +76,10 @@ export const comparisonRows = [
 ];
 
 export const pricingFaqs = [
-  { question: "Can I start for free?", answer: "Yes. The Free plan includes 5 GB of secure cloud storage and the core file and folder tools, with no payment details required." },
+  { question: "Can I start for free?", answer: "Yes. The Free plan includes 8 GB of secure cloud storage and the core file and folder tools, with no payment details required." },
   { question: "Can I upgrade later?", answer: "Yes. You can begin on Free and move to Pro or Business as your storage and workflow needs grow." },
   { question: "What happens when I reach my storage limit?", answer: "Your existing files remain available, but new uploads pause until you remove files or upgrade to a plan with more storage." },
-  { question: "Can I cancel anytime?", answer: "Yes. Paid plans will be cancellable at any time once billing is enabled. Your access continues through the current billing period." },
+  { question: "Can I cancel anytime?", answer: "Yes. Paid plans can be cancelled from the billing page. Your access continues through the current billing period." },
   { question: "Is my data secure?", answer: "Storix uses authenticated sessions and secure object storage infrastructure. Access to files remains tied to your account permissions." },
   { question: "Which plan is best for teams?", answer: "Business is designed for teams, agencies, and organizations that need higher limits, activity visibility, and admin-level storage management." },
 ];
